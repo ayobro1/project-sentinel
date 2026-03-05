@@ -1,0 +1,12 @@
+[Unit]
+Description=Project Sentinel Firewall and Filtering Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/workspaces/project-sentinel/sentinel_server
+Restart=on-failure
+User=nobody
+
+[Install]
+WantedBy=multi-user.target
