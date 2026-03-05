@@ -1,0 +1,53 @@
+#!/bin/bash
+# sentinel - Unified CLI for Project Sentinel
+# Usage: sentinel <command>
+
+SENTINEL_DIR="$(dirname "$0")"
+SERVER_BIN="$SENTINEL_DIR/sentinel_server"
+FW_SCRIPT="$SENTINEL_DIR/sentinel_fw.sh"
+BLOCKLIST_SCRIPT="$SENTINEL_DIR/update_blocklists.sh"
+SERVICE_FILE="$SENTINEL_DIR/sentinel.service"
+
+function usage() {
+    echo "Usage: $0 <command>"
+    echo "Commands:"
+    echo "  start            Start Sentinel server and firewall"
+    echo "  stop             Stop Sentinel server and firewall"
+    echo "  status           Show status of Sentinel server and firewall"
+    echo "  reload           Reload firewall rules"
+    echo "  update-blocklists  Update community blocklists"
+    echo "  help             Show this help message"
+}
+
+case "$1" in
+    start)
+        "$FW_SCRIPT" start
+        nohup "$SERVER_BIN" > "$SENTINEL_DIR/sentinel_server.log" 2>&1 &
+        echo "[+] Sentinel server started."
+        ;;
+    stop)
+        pkill -f "$SERVER_BIN"
+        "$FW_SCRIPT" stop
+        echo "[-] Sentinel server stopped."
+        ;;
+    status)
+        pgrep -f "$SERVER_BIN" > /dev/null && echo "[+] Sentinel server is running." || echo "[-] Sentinel server is not running."
+        "$FW_SCRIPT" status
+        ;;
+    reload)
+        "$FW_SCRIPT" stop
+        "$FW_SCRIPT" start
+        echo "[~] Firewall rules reloaded."
+        ;;
+    update-blocklists)
+        "$BLOCKLIST_SCRIPT"
+        ;;
+    help|--help|-h|"")
+        usage
+        ;;
+    *)
+        echo "Unknown command: $1"
+        usage
+        exit 1
+        ;;
+esac
