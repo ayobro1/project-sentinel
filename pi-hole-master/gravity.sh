@@ -217,21 +217,13 @@ database_table_from_file() {
     rowid+=1
   fi
 
-  # Loop over all domains in ${src} file
-  # Read file line by line
-  grep -v '^ *#' <"${src}" | while IFS= read -r domain; do
-    # Only add non-empty lines
-    if [[ -n "${domain}" ]]; then
-      if [[ "${table}" == "adlist" ]]; then
-        # Adlist table format
-        echo "${rowid},\"${domain}\",1,${timestamp},${timestamp},\"Migrated from ${src}\",,0,0,0,0,0" >>"${tmpFile}"
-      else
-        # White-, black-, and regexlist table format
-        echo "${rowid},${list_type},\"${domain}\",1,${timestamp},${timestamp},\"Migrated from ${src}\"" >>"${tmpFile}"
-      fi
-      rowid+=1
-    fi
-  done
+
+  # Batch process domains using awk for efficiency
+  if [[ "${table}" == "adlist" ]]; then
+    awk -v rowid="${rowid}" -v ts="${timestamp}" -v src="${src}" 'BEGIN{FS="\n"} /^[^#[:space:]]/ && NF { printf "%d,\"%s\",1,%s,%s,\"Migrated from %s\",,0,0,0,0,0\n", rowid++, $0, ts, ts, src }' "${src}" >>"${tmpFile}"
+  else
+    awk -v rowid="${rowid}" -v lt="${list_type}" -v ts="${timestamp}" -v src="${src}" 'BEGIN{FS="\n"} /^[^#[:space:]]/ && NF { printf "%d,%s,\"%s\",1,%s,%s,\"Migrated from %s\"\n", rowid++, lt, $0, ts, ts, src }' "${src}" >>"${tmpFile}"
+  fi
 
   # Store domains in database table specified by ${table}
   # Use printf as .mode and .import need to be on separate lines
@@ -252,6 +244,8 @@ database_table_from_file() {
   # Delete tmpFile
   rm "${tmpFile}" >/dev/null 2>&1 ||
     echo -e "  ${CROSS} Unable to remove ${tmpFile}"
+
+  # Further optimization: Consider using sqlite3's .import directly on the original file if format matches
 }
 
 # Check if a column with name ${2} exists in gravity table with name ${1}
